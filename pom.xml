@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="
+            http://maven.apache.org/POM/4.0.0
+            https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.github.calcifux</groupId>
+  <artifactId>mailable-toolkit-parent</artifactId>
+  <version>${revision}</version>
+  <packaging>pom</packaging>
+
+  <name>mailable-toolkit-parent</name>
+  <description>
+    A Laravel-Mailable for Java: write a typed Mailable (subject/from, template + vars,
+    0..N inline CID images, 0..N attachments) and send it. Templating is pluggable behind
+    one SPI (Pebble, Thymeleaf, FreeMarker — with template inheritance), SMTP is pluggable
+    behind named "mailers" so a mail can pick which server it goes out from, and sending can
+    be sync or async over a queue (in-memory or Redis), with each mailable able to ride its
+    own queue. Mounts as a Spring Boot starter.
+  </description>
+  <url>https://github.com/calcifux/mailable-toolkit</url>
+
+  <licenses>
+    <license>
+      <name>MIT License</name>
+      <url>https://opensource.org/licenses/MIT</url>
+    </license>
+  </licenses>
+
+  <!--
+    NO <parent>. Same call as auth-toolkit / the remote-* libraries: a LIBRARY imports the
+    spring-boot-dependencies BOM (below) for managed versions instead of inheriting
+    spring-boot-starter-parent, so we get Boot's dependency management without its
+    app-oriented build/plugin config.
+  -->
+
+  <properties>
+    <!-- Single source of truth for the release version (resolved by flatten at publish). -->
+    <revision>0.1.0</revision>
+
+    <java.version>21</java.version>
+    <maven.compiler.release>21</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+
+    <!-- Spring Boot BOM — manages spring-*, jakarta.mail-api, angus-mail, thymeleaf,
+         freemarker, spring-data-redis, junit, assertj, mockito, slf4j, greenmail, etc. -->
+    <spring.boot.version>3.2.5</spring.boot.version>
+
+    <lombok.version>1.18.36</lombok.version>
+
+    <!-- Pebble: NOT managed by the Boot BOM, so pin it. Jinja-like (template inheritance
+         via {% extends %}/{% block %}), the closest engine to the milpa templates. -->
+    <pebble.version>3.2.2</pebble.version>
+
+    <!-- GreenMail: embedded SMTP for integration tests (not in the Boot BOM). -->
+    <greenmail.version>2.0.1</greenmail.version>
+
+    <!-- Build plugins pinned to versions JitPack's older build Maven accepts
+         (same caps as auth-toolkit / the remote-* libraries). -->
+    <maven-compiler-plugin.version>3.11.0</maven-compiler-plugin.version>
+    <maven-surefire-plugin.version>3.1.2</maven-surefire-plugin.version>
+    <flatten-maven-plugin.version>1.5.0</flatten-maven-plugin.version>
+
+    <!-- Deliberately NO SonarCloud / JaCoCo: this toolkit stays "basic and fast" to build
+         (same decision as auth-toolkit). Tests run in CI/local; JitPack builds with -DskipTests. -->
+  </properties>
+
+  <modules>
+    <module>mailable-toolkit-core</module>
+    <module>mailable-toolkit-pebble</module>
+    <module>mailable-toolkit-thymeleaf</module>
+    <module>mailable-toolkit-freemarker</module>
+    <module>mailable-toolkit-spring</module>
+  </modules>
+
+  <dependencyManagement>
+    <dependencies>
+      <!-- Spring Boot BOM — versions for jakarta.mail-api, angus-mail, thymeleaf, freemarker,
+           spring-*, spring-data-redis, junit-jupiter, assertj-core, slf4j-api. -->
+      <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-dependencies</artifactId>
+        <version>${spring.boot.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+
+      <!-- Pebble templating engine (pinned; not in the Boot BOM). -->
+      <dependency>
+        <groupId>io.pebbletemplates</groupId>
+        <artifactId>pebble</artifactId>
+        <version>${pebble.version}</version>
+      </dependency>
+
+      <!-- GreenMail (test). -->
+      <dependency>
+        <groupId>com.icegreen</groupId>
+        <artifactId>greenmail-junit5</artifactId>
+        <version>${greenmail.version}</version>
+        <scope>test</scope>
+      </dependency>
+
+      <!-- Internal module -->
+      <dependency>
+        <groupId>com.github.calcifux</groupId>
+        <artifactId>mailable-toolkit-core</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>${maven-compiler-plugin.version}</version>
+        <configuration>
+          <release>${java.version}</release>
+          <annotationProcessorPaths>
+            <path>
+              <groupId>org.projectlombok</groupId>
+              <artifactId>lombok</artifactId>
+              <version>${lombok.version}</version>
+            </path>
+          </annotationProcessorPaths>
+        </configuration>
+      </plugin>
+
+      <!-- flatten: resolve ${revision} to a literal at install/deploy so JitPack publishes
+           POMs without the variable (same as auth-toolkit / the remote-* libraries). -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>flatten-maven-plugin</artifactId>
+        <version>${flatten-maven-plugin.version}</version>
+        <configuration>
+          <updatePomFile>true</updatePomFile>
+          <flattenMode>resolveCiFriendliesOnly</flattenMode>
+        </configuration>
+        <executions>
+          <execution>
+            <id>flatten</id>
+            <phase>process-resources</phase>
+            <goals>
+              <goal>flatten</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>flatten.clean</id>
+            <phase>clean</phase>
+            <goals>
+              <goal>clean</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>${maven-surefire-plugin.version}</version>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

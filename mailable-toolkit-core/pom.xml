@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="
+            http://maven.apache.org/POM/4.0.0
+            https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.github.calcifux</groupId>
+    <artifactId>mailable-toolkit-parent</artifactId>
+    <version>${revision}</version>
+  </parent>
+
+  <artifactId>mailable-toolkit-core</artifactId>
+  <packaging>jar</packaging>
+
+  <name>mailable-toolkit-core</name>
+  <description>
+    Framework-agnostic heart of mailable-toolkit: the typed Mailable + Envelope model
+    (0..N inline CID images, 0..N attachments), the TemplateRenderer and MailTransport SPIs,
+    the MIME assembly + render orchestration, named-mailer resolution, log/noop transports,
+    and the async mail queue SPI + in-memory adapter + worker. No Spring — usable from any
+    framework, a CLI or a job.
+  </description>
+
+  <dependencies>
+
+    <!-- Logging API (no concrete implementation). -->
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+    </dependency>
+
+    <!-- Jakarta Mail (Angus impl) — builds the MIME message and provides the SMTP provider.
+         Version managed by the Spring Boot BOM. -->
+    <dependency>
+      <groupId>org.eclipse.angus</groupId>
+      <artifactId>angus-mail</artifactId>
+    </dependency>
+
+    <!-- Lombok — compile-time only. -->
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <version>${lombok.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- Testing -->
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+  </dependencies>
+
+</project>

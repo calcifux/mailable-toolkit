@@ -1,0 +1,8 @@
+# JitPack build configuration (same as auth-toolkit / the remote-* libraries).
+# Force Java 21 — the default (Java 8) would fail on records / pattern matching.
+jdk:
+  - openjdk21
+
+# Skip tests on JitPack to keep consumer fetches fast. Tests run in CI / local.
+install:
+  - mvn clean install -DskipTests --no-transfer-progress

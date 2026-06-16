@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="
+            http://maven.apache.org/POM/4.0.0
+            https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.github.calcifux</groupId>
+    <artifactId>mailable-toolkit-parent</artifactId>
+    <version>${revision}</version>
+  </parent>
+
+  <artifactId>mailable-toolkit-spring</artifactId>
+  <packaging>jar</packaging>
+
+  <name>mailable-toolkit-spring</name>
+  <description>
+    Spring Boot starter for mailable-toolkit: auto-configuration, mailable-toolkit.* properties, the
+    named-mailer SMTP registry built from yml (multi-SMTP), engine selection, the in-memory and Redis
+    Streams queue adapters, and the static Mail facade. Add this + core + one engine adapter and send.
+  </description>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.github.calcifux</groupId>
+      <artifactId>mailable-toolkit-core</artifactId>
+    </dependency>
+
+    <!-- Engine adapters: OPTIONAL so the consumer pulls only the one they use. The autoconfig
+         compiles against them and lights each TemplateRenderer up via @ConditionalOnClass. -->
+    <dependency>
+      <groupId>com.github.calcifux</groupId>
+      <artifactId>mailable-toolkit-pebble</artifactId>
+      <version>${project.version}</version>
+      <optional>true</optional>
+    </dependency>
+    <dependency>
+      <groupId>com.github.calcifux</groupId>
+      <artifactId>mailable-toolkit-thymeleaf</artifactId>
+      <version>${project.version}</version>
+      <optional>true</optional>
+    </dependency>
+    <dependency>
+      <groupId>com.github.calcifux</groupId>
+      <artifactId>mailable-toolkit-freemarker</artifactId>
+      <version>${project.version}</version>
+      <optional>true</optional>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-autoconfigure</artifactId>
+    </dependency>
+
+    <!-- JavaMailSender (SmtpMailTransport). -->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-context-support</artifactId>
+    </dependency>
+
+    <!-- Redis Streams queue adapter (OPTIONAL): only when the app brings spring-data-redis. -->
+    <dependency>
+      <groupId>org.springframework.data</groupId>
+      <artifactId>spring-data-redis</artifactId>
+      <optional>true</optional>
+    </dependency>
+
+    <!-- IDE autocomplete for mailable-toolkit.* -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-configuration-processor</artifactId>
+      <optional>true</optional>
+    </dependency>
+
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <version>${lombok.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- Testing: pebble (the optional compile dep above is already on this module's test classpath)
+         drives the engine-selection + render assertions; greenmail is the embedded SMTP. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.icegreen</groupId>
+      <artifactId>greenmail-junit5</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+</project>
