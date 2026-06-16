@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.2.1]
+
+_Docs + tests only — no API or behavior changes; the published artifacts are identical to 0.2.0._
+
 ### Added
 
 - **Examples** (`examples/`) covering the common real-world shapes: `DbTemplateMail` (a user-edited
@@ -73,6 +77,7 @@ First release — a Laravel-Mailable for Java.
   - The static **`Mail`** facade — `Mail.send(...)`, `Mail.queue(...)`,
     `Mail.mailer("billing").send(...)`, `Mail.onQueue("priority").queue(...)`, `Mail.preview(...)`.
 
-[Unreleased]: https://github.com/calcifux/mailable-toolkit/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/calcifux/mailable-toolkit/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/calcifux/mailable-toolkit/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/calcifux/mailable-toolkit/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/calcifux/mailable-toolkit/releases/tag/v0.1.0
