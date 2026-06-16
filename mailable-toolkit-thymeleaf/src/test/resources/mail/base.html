@@ -1,0 +1,11 @@
+<!--
+  Base layout. Thymeleaf has no {% extends %}; instead the layout is a parameterized
+  fragment that receives the child's content fragment and inserts it. The child page
+  (welcome.html) calls this fragment via th:replace, so the rendered output carries
+  this shell (the id="content" wrapper) plus whatever the child passed in.
+-->
+<div th:fragment="layout(content)">
+    <div id="content">
+        <div th:replace="${content}">child content goes here</div>
+    </div>
+</div>

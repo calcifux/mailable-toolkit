@@ -1,0 +1,10 @@
+<!--
+  Welcome page. "Inherits" from mail/base by replacing itself with the base layout
+  fragment, handing its own ~{::content} fragment as the layout's parameter. The
+  ClassLoaderTemplateResolver loads mail/base.html the same way it loads this file,
+  so this is the real Thymeleaf layout/inheritance mechanism (parameterized fragments).
+  th:text escapes by default, which is why the markup test below relies on it too.
+-->
+<div th:replace="~{mail/base :: layout(~{::content})}">
+    <p th:fragment="content" th:text="'Hi ' + ${name}">Hi placeholder</p>
+</div>
