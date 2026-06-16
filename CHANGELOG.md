@@ -6,6 +6,18 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- **Examples** (`examples/`) covering the common real-world shapes: `DbTemplateMail` (a user-edited
+  template string stored in the DB, rendered inline — no classpath, no inheritance), `SftpAssetResolver`
+  (a custom `sftp:` `AssetResolver` that attaches files from an SFTP server, fetched worker-side so only
+  the path rides the queue), and `MultiSourceAssetsMail` (inline images + attachments from `classpath:` /
+  `file:` / `http(s):` / `s3://` / `sftp:` in a single mail). The examples also mark the boundary:
+  document processing (PDF password-protection, watermarking, signing) lives in the application, not the
+  toolkit — it just carries the final bytes.
+- Inheritance + inline + HTML-escape tests for the **Thymeleaf** and **FreeMarker** renderers, bringing
+  them to test parity with Pebble (the three engines now share the same render-test suite).
+
 ## [0.2.0]
 
 ### Added

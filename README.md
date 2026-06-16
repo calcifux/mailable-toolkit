@@ -292,6 +292,18 @@ AssetResolver s3Assets(S3Client s3) {
 }
 ```
 
+## Examples
+
+Illustrative snippets live in [`examples/`](examples/):
+
+- [`WelcomeMail`](examples/WelcomeMail.java) — the simplest mailable (subject + template + vars).
+- [`InvoiceMail`](examples/InvoiceMail.java) — inline image + attachments (by path **and** bytes), reply-to, locale, its own queue, a named mailer.
+- [`SendingExamples`](examples/SendingExamples.java) — every dispatch path: `send` / `queue` / `mailer("x")` / `onQueue("y")` / `preview`.
+- [`DbTemplateMail`](examples/DbTemplateMail.java) — a user-edited template string stored in the DB, rendered inline (the billing-mail case) + the template-injection security note.
+- [`DynamicMailersAndAssets`](examples/DynamicMailersAndAssets.java) — SMTP servers resolved from a DB table (`MailerProvider`) and a custom `s3://` scheme (`AssetResolver`).
+- [`SftpAssetResolver`](examples/SftpAssetResolver.java) — attach files from an SFTP server via a custom `sftp:` resolver (bytes fetched worker-side).
+- [`MultiSourceAssetsMail`](examples/MultiSourceAssetsMail.java) — inline images + attachments from `classpath:` / `file:` / `http(s):` / `s3://` / `sftp:` in one mail, and where app-side PDF protection goes.
+
 ## Build
 
 ```bash
