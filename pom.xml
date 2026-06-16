@@ -39,7 +39,7 @@
 
   <properties>
     <!-- Single source of truth for the release version (resolved by flatten at publish). -->
-    <revision>0.1.0</revision>
+    <revision>0.2.0</revision>
 
     <java.version>21</java.version>
     <maven.compiler.release>21</maven.compiler.release>

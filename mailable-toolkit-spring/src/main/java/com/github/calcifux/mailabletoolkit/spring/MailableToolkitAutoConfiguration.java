@@ -1,9 +1,12 @@
 package com.github.calcifux.mailabletoolkit.spring;
 
+import com.github.calcifux.mailabletoolkit.AssetResolver;
+import com.github.calcifux.mailabletoolkit.AssetResolvers;
 import com.github.calcifux.mailabletoolkit.LogMailTransport;
 import com.github.calcifux.mailabletoolkit.MailRenderer;
 import com.github.calcifux.mailabletoolkit.MailTransport;
 import com.github.calcifux.mailabletoolkit.Mailer;
+import com.github.calcifux.mailabletoolkit.MailerProvider;
 import com.github.calcifux.mailabletoolkit.MailerRegistry;
 import com.github.calcifux.mailabletoolkit.TemplateRenderer;
 import com.github.calcifux.mailabletoolkit.freemarker.FreemarkerTemplateRenderer;
@@ -23,12 +26,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.mail.javamail.JavaMailSenderImpl;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Properties;
 
 /**
  * Wires the toolkit from {@code mailable-toolkit.*}: picks the templating engine (Pebble default; any
@@ -84,21 +85,34 @@ public class MailableToolkitAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    MailRenderer mailRenderer(TemplateRenderer renderer) {
-        return new MailRenderer(renderer);
+    AssetResolvers assetResolvers(ObjectProvider<AssetResolver> custom) {
+        AssetResolvers resolvers = AssetResolvers.defaults();
+        // any AssetResolver beans the app defines (e.g. an s3:// one) take precedence over the built-ins
+        for (AssetResolver resolver : custom.orderedStream().toList()) {
+            resolvers = resolvers.withFirst(resolver);
+        }
+        return resolvers;
     }
 
     @Bean
     @ConditionalOnMissingBean
-    MailerRegistry mailerRegistry(MailableToolkitProperties props) {
+    MailRenderer mailRenderer(TemplateRenderer renderer, AssetResolvers assets) {
+        return new MailRenderer(renderer, assets);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    MailerRegistry mailerRegistry(MailableToolkitProperties props, ObjectProvider<MailerProvider> providers) {
         List<MailTransport> transports = new ArrayList<>();
         props.getMailers().forEach((name, mailer) -> transports.add(buildSmtp(name, mailer, props.getFrom())));
-        if (transports.isEmpty()) {
-            log.warn("[mailable-toolkit] no SMTP mailers configured (mailable-toolkit.mailers.*) — "
-                    + "falling back to a log transport: mail will be LOGGED, not sent");
+        List<MailerProvider> dynamic = providers.orderedStream().toList();
+        if (transports.isEmpty() && dynamic.isEmpty()) {
+            log.warn("[mailable-toolkit] no SMTP mailers configured (mailable-toolkit.mailers.*) and no "
+                    + "MailerProvider bean — falling back to a log transport: mail will be LOGGED, not sent");
             transports.add(new LogMailTransport("log"));
         }
-        return new MailerRegistry(transports, props.getDefaultMailer());
+        long cacheTtl = props.getMailerCacheTtl() == null ? 0L : props.getMailerCacheTtl().toMillis();
+        return new MailerRegistry(transports, dynamic, props.getDefaultMailer(), cacheTtl);
     }
 
     @Bean
@@ -158,30 +172,10 @@ public class MailableToolkitAutoConfiguration {
 
     private static SmtpMailTransport buildSmtp(String name, MailableToolkitProperties.Mailer cfg,
                                                MailableToolkitProperties.From globalFrom) {
-        JavaMailSenderImpl sender = new JavaMailSenderImpl();
-        sender.setHost(cfg.getHost());
-        sender.setPort(cfg.getPort());
-        if (cfg.getUsername() != null && !cfg.getUsername().isBlank()) {
-            sender.setUsername(cfg.getUsername());
-        }
-        if (cfg.getPassword() != null && !cfg.getPassword().isBlank()) {
-            sender.setPassword(cfg.getPassword());
-        }
-
-        Properties mailProps = sender.getJavaMailProperties();
-        mailProps.put("mail.transport.protocol", "smtp");
-        boolean auth = cfg.getUsername() != null && !cfg.getUsername().isBlank();
-        mailProps.put("mail.smtp.auth", String.valueOf(auth));
-        String encryption = cfg.getEncryption() == null ? "starttls" : cfg.getEncryption().toLowerCase();
-        switch (encryption) {
-            case "starttls" -> mailProps.put("mail.smtp.starttls.enable", "true");
-            case "ssl" -> mailProps.put("mail.smtp.ssl.enable", "true");
-            default -> { /* none: plain SMTP (dev / internal relay) */ }
-        }
-
-        String fromEmail = firstNonBlank(cfg.getFromEmail(), globalFrom.getEmail());
-        String fromName = firstNonBlank(cfg.getFromName(), globalFrom.getName());
-        return new SmtpMailTransport(name, sender, fromEmail, fromName);
+        return SmtpMailTransport.smtp(name, cfg.getHost(), cfg.getPort(), cfg.getUsername(), cfg.getPassword(),
+                cfg.getEncryption(),
+                firstNonBlank(cfg.getFromEmail(), globalFrom.getEmail()),
+                firstNonBlank(cfg.getFromName(), globalFrom.getName()));
     }
 
     private static String firstNonBlank(String... values) {

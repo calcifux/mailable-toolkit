@@ -1,5 +1,11 @@
 # mailable-toolkit
 
+[![CI](https://github.com/calcifux/mailable-toolkit/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/calcifux/mailable-toolkit/actions/workflows/ci.yml)
+[![JitPack](https://jitpack.io/v/calcifux/mailable-toolkit.svg)](https://jitpack.io/#calcifux/mailable-toolkit)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Java 21](https://img.shields.io/badge/Java-21-orange.svg)](https://openjdk.org/projects/jdk/21/)
+[![Spring Boot 3.x](https://img.shields.io/badge/Spring%20Boot-3.x-6DB33F.svg)](https://spring.io/projects/spring-boot)
+
 A **Laravel-Mailable for Java**. Write a typed `Mailable` — a subject, a template + its vars, optional
 inline images and attachments — and send it:
 
@@ -159,6 +165,18 @@ public Envelope build() {
 Pass `0` of either and it's a plain HTML email; the MIME tree is built to match (`multipart/mixed →
 related → alternative`, with a plain-text fallback generated from the HTML).
 
+**Where an asset comes from** — an inline `resource` or an `attach(...)` reference can be:
+
+```java
+.attach("classpath:mail/terms.pdf")                  // bundled resource
+.attach("file:/var/app/another-folder/anexo.pdf")    // any folder on disk (bare path works too)
+.attach("https://files.corp.com/s3/INV-1024.pdf")    // an HTTP(S) URL — incl. pre-signed S3/GCS/Azure links
+.attach("s3://bucket/INV-1024.pdf")                  // any scheme you register an AssetResolver for
+```
+
+The reference is resolved at **send time** (worker-side when queued), so a big file never travels through
+the broker — only the small URI does. `https:` covers most "from the cloud" cases with no SDK.
+
 ### Pick a queue / pick an SMTP per send
 
 ```java
@@ -233,6 +251,46 @@ mailer.send(new WelcomeMail("Calcifux"), List.of("calcifux@example.com"));
 queue for `RedisMailQueue`: one Redis Stream per queue name (`<key-prefix>:<queue>`), a consumer group
 with explicit ack, retry by re-adding with `attempts++` and backoff, and a `<...>:dlq` dead-letter
 stream. Run the same app on several nodes and the consumer group balances the work.
+
+### Dynamic mailers (SMTP from a DB)
+
+`mailable-toolkit.mailers.*` declares fixed servers, but a mailer can also be resolved by name at runtime
+— e.g. from a table of SMTP servers. Define a `MailerProvider` bean; the registry tries **static mailers →
+a short-TTL cache → your providers**:
+
+```java
+@Bean
+MailerProvider tenantMailers(SmtpRepository repo) {
+    return name -> {
+        SmtpRow row = repo.findByName(name);
+        return row == null ? null      // null → registry tries the next provider
+             : SmtpMailTransport.smtp(name, row.host(), row.port(), row.user(), row.pass(),
+                                      row.encryption(), row.fromEmail(), row.fromName());
+    };
+}
+```
+
+Then `Mail.mailer("tenant-42").send(...)` resolves `tenant-42` against your table. Results are cached for
+`mailable-toolkit.mailer-cache-ttl` (default `5m`; `0` disables); call `registry.evict(name)` when a row
+changes. You can run with **only** dynamic mailers (no static ones) — just always name the mailer per send.
+
+### Custom asset schemes
+
+The built-in `AssetResolver`s cover `classpath:`, `file:` and `http(s):`. Add `s3://` (or anything) by
+registering an `AssetResolver` bean — it's consulted before the built-ins:
+
+```java
+@Bean
+AssetResolver s3Assets(S3Client s3) {
+    return new AssetResolver() {
+        public boolean supports(String uri) { return uri.startsWith("s3://"); }
+        public ResolvedAsset resolve(String uri) {
+            // fetch bytes from S3; throw RetryableMailException (transient) or TerminalMailException (gone)
+            return new ResolvedAsset(bytes, contentType, filename);
+        }
+    };
+}
+```
 
 ## Build
 

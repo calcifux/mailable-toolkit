@@ -1,7 +1,6 @@
 package com.github.calcifux.mailabletoolkit;
 
 import jakarta.activation.DataHandler;
-import jakarta.activation.FileDataSource;
 import jakarta.mail.Message;
 import jakarta.mail.Session;
 import jakarta.mail.internet.InternetAddress;
@@ -9,7 +8,6 @@ import jakarta.mail.internet.MimeBodyPart;
 import jakarta.mail.internet.MimeMessage;
 import jakarta.mail.internet.MimeMultipart;
 import jakarta.mail.util.ByteArrayDataSource;
-import lombok.RequiredArgsConstructor;
 
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
@@ -32,10 +30,20 @@ import java.util.Properties;
  * With 0 inline images and 0 attachments it collapses to a bare multipart/alternative. The plain-text
  * part is auto-derived from the HTML so every mail has a text fallback.
  */
-@RequiredArgsConstructor
 public class MailRenderer {
 
     private final TemplateRenderer renderer;
+    private final AssetResolvers assets;
+
+    /** Uses the default asset resolvers (classpath / http(s) / file). */
+    public MailRenderer(TemplateRenderer renderer) {
+        this(renderer, AssetResolvers.defaults());
+    }
+
+    public MailRenderer(TemplateRenderer renderer, AssetResolvers assets) {
+        this.renderer = renderer;
+        this.assets = assets;
+    }
 
     /** Render + assemble. {@code from*} are already resolved (Envelope > mailer > global) by the caller. */
     public RenderedMail render(Envelope env, List<String> to, List<String> cc, List<String> bcc,
@@ -115,9 +123,11 @@ public class MailRenderer {
             MimeBodyPart bodyWrapper = new MimeBodyPart();
             bodyWrapper.setContent(body);
             mixed.addBodyPart(bodyWrapper);
-            for (String path : env.getAttachments()) {
+            for (String reference : env.getAttachments()) {
+                ResolvedAsset resolved = assets.resolve(reference);
                 MimeBodyPart part = new MimeBodyPart();
-                part.attachFile(path);
+                part.setDataHandler(new DataHandler(new ByteArrayDataSource(resolved.content(), resolved.contentType())));
+                part.setFileName(resolved.filename());
                 mixed.addBodyPart(part);
             }
             for (DataAttachment data : env.getDataAttachments()) {
@@ -139,20 +149,11 @@ public class MailRenderer {
             String type = asset.contentType() == null ? "application/octet-stream" : asset.contentType();
             part.setDataHandler(new DataHandler(new ByteArrayDataSource(asset.content(), type)));
         } else {
-            String ref = asset.resource();
-            if (ref != null && ref.startsWith("classpath:")) {
-                String cp = ref.substring("classpath:".length());
-                if (cp.startsWith("/")) {
-                    cp = cp.substring(1);
-                }
-                var url = Thread.currentThread().getContextClassLoader().getResource(cp);
-                if (url == null) {
-                    throw new TerminalMailException("Inline asset not on classpath: " + ref);
-                }
-                part.setDataHandler(new DataHandler(url));
-            } else {
-                part.setDataHandler(new DataHandler(new FileDataSource(ref)));
-            }
+            ResolvedAsset resolved = assets.resolve(asset.resource());
+            String type = (asset.contentType() != null && !asset.contentType().isBlank())
+                    ? asset.contentType()
+                    : resolved.contentType();
+            part.setDataHandler(new DataHandler(new ByteArrayDataSource(resolved.content(), type)));
         }
         part.setContentID("<" + asset.cid() + ">");
         part.setDisposition(MimeBodyPart.INLINE);

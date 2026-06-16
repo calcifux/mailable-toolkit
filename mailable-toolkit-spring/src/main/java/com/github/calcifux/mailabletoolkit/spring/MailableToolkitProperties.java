@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +33,8 @@ public class MailableToolkitProperties {
     private From from = new From();
     private String defaultMailer;
     private Map<String, Mailer> mailers = new LinkedHashMap<>();
+    /** TTL for mailers resolved dynamically by a MailerProvider (DB-backed); 0 disables caching. */
+    private Duration mailerCacheTtl = Duration.ofMinutes(5);
     private Queue queue = new Queue();
     private Preview preview = new Preview();
 

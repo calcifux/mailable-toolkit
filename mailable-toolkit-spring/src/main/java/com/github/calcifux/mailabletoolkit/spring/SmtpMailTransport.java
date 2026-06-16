@@ -9,6 +9,9 @@ import org.springframework.mail.MailAuthenticationException;
 import org.springframework.mail.MailException;
 import org.springframework.mail.MailParseException;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.JavaMailSenderImpl;
+
+import java.util.Properties;
 
 /**
  * A named SMTP transport backed by a Spring {@link JavaMailSender} (one per configured "mailer", built
@@ -23,6 +26,35 @@ public class SmtpMailTransport implements MailTransport {
     private final JavaMailSender sender;
     private final String fromEmail;
     private final String fromName;
+
+    /**
+     * Build a transport from raw SMTP settings — the one-liner a {@link com.github.calcifux.mailabletoolkit.MailerProvider}
+     * uses to turn a DB row into a mailer. {@code encryption} is {@code starttls} (default) | {@code ssl} | {@code none}.
+     */
+    public static SmtpMailTransport smtp(String name, String host, int port, String username, String password,
+                                         String encryption, String fromEmail, String fromName) {
+        JavaMailSenderImpl sender = new JavaMailSenderImpl();
+        sender.setHost(host);
+        sender.setPort(port);
+        if (username != null && !username.isBlank()) {
+            sender.setUsername(username);
+        }
+        if (password != null && !password.isBlank()) {
+            sender.setPassword(password);
+        }
+
+        Properties mailProps = sender.getJavaMailProperties();
+        mailProps.put("mail.transport.protocol", "smtp");
+        mailProps.put("mail.smtp.auth", String.valueOf(username != null && !username.isBlank()));
+        String mode = encryption == null ? "starttls" : encryption.toLowerCase();
+        switch (mode) {
+            case "starttls" -> mailProps.put("mail.smtp.starttls.enable", "true");
+            case "ssl" -> mailProps.put("mail.smtp.ssl.enable", "true");
+            default -> { /* none: plain SMTP (dev / internal relay) */ }
+        }
+
+        return new SmtpMailTransport(name, sender, fromEmail, fromName);
+    }
 
     @Override
     public void send(RenderedMail mail) {
