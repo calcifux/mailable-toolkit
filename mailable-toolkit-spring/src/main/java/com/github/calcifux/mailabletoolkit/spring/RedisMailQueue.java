@@ -97,9 +97,15 @@ public class RedisMailQueue implements MailQueue, AutoCloseable {
     }
 
     private void process(String key, MapRecord<String, Object, Object> record) {
+        Object payload = record.getValue().get(PAYLOAD);
+        if (payload == null) {
+            // Not a mail — a stream-creation placeholder ("_init"). Ack and skip quietly.
+            redis.opsForStream().acknowledge(group, record);
+            return;
+        }
         QueuedMail mail;
         try {
-            mail = decode(String.valueOf(record.getValue().get(PAYLOAD)));
+            mail = decode(String.valueOf(payload));
         } catch (RuntimeException badPayload) {
             log.error("[mailable-toolkit] undecodable queue record {} → dead-letter", record.getId(), badPayload);
             redis.opsForStream().acknowledge(group, record);
@@ -146,15 +152,16 @@ public class RedisMailQueue implements MailQueue, AutoCloseable {
 
     private void ensureGroup(String key) {
         try {
-            redis.opsForStream().createGroup(key, ReadOffset.latest(), group);
-        } catch (RuntimeException existsOrNoStream) {
-            // BUSYGROUP (already there) → fine. No stream yet → create it, then the group.
-            try {
+            // A consumer group needs the stream to exist first. Create the stream with a throwaway
+            // placeholder ONLY when it's missing — never on an existing stream, or every boot would
+            // pile up unreadable "_init" entries that the worker chokes on. The group is created at
+            // latest(), so the placeholder sits before it and is never delivered to a worker.
+            if (!Boolean.TRUE.equals(redis.hasKey(key))) {
                 redis.opsForStream().add(key, Map.of("_init", "1"));
-                redis.opsForStream().createGroup(key, ReadOffset.latest(), group);
-            } catch (RuntimeException ignored) {
-                // group exists now (concurrent worker / restart)
             }
+            redis.opsForStream().createGroup(key, ReadOffset.latest(), group);
+        } catch (RuntimeException busyGroupOrRace) {
+            // BUSYGROUP — the group already exists (restart / concurrent worker). Nothing to do.
         }
     }
 
