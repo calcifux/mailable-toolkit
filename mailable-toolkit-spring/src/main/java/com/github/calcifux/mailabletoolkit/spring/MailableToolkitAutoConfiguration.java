@@ -52,7 +52,7 @@ public class MailableToolkitAutoConfiguration {
     static class PebbleRendererConfig {
         @Bean
         @ConditionalOnMissingBean(TemplateRenderer.class)
-        TemplateRenderer pebbleTemplateRenderer(MailableToolkitProperties props) {
+        TemplateRenderer mailableToolkitPebbleRenderer(MailableToolkitProperties props) {
             return new PebbleTemplateRenderer(props.getTemplate().getPrefix(), suffixOr(props, ".peb"));
         }
     }
@@ -64,7 +64,7 @@ public class MailableToolkitAutoConfiguration {
     static class ThymeleafRendererConfig {
         @Bean
         @ConditionalOnMissingBean(TemplateRenderer.class)
-        TemplateRenderer thymeleafTemplateRenderer(MailableToolkitProperties props) {
+        TemplateRenderer mailableToolkitThymeleafRenderer(MailableToolkitProperties props) {
             return new ThymeleafTemplateRenderer(props.getTemplate().getPrefix(), suffixOr(props, ".html"));
         }
     }
@@ -76,7 +76,7 @@ public class MailableToolkitAutoConfiguration {
     static class FreemarkerRendererConfig {
         @Bean
         @ConditionalOnMissingBean(TemplateRenderer.class)
-        TemplateRenderer freemarkerTemplateRenderer(MailableToolkitProperties props) {
+        TemplateRenderer mailableToolkitFreemarkerRenderer(MailableToolkitProperties props) {
             return new FreemarkerTemplateRenderer(props.getTemplate().getPrefix(), suffixOr(props, ".ftlh"));
         }
     }
