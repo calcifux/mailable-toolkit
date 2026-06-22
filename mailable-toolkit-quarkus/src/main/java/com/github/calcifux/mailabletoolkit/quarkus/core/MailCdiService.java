@@ -15,7 +15,7 @@ import com.github.calcifux.mailabletoolkit.quarkus.Mail;
 import io.quarkus.redis.datasource.RedisDataSource;
 import jakarta.annotation.PreDestroy;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.enterprise.context.Initialized;
+import io.quarkus.runtime.StartupEvent;
 import jakarta.enterprise.event.Observes;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
@@ -119,9 +119,12 @@ public class MailCdiService {
         this.blockMillis = blockMillis;
     }
 
-    // --- lifecycle (standard CDI; portable) ---
+    // --- lifecycle (Quarkus StartupEvent = RUNTIME_INIT). NOTE: @Initialized(ApplicationScoped.class) fires at
+    //     STATIC_INIT (build time) under Quarkus, which would spawn the virtual-thread Redis worker during native
+    //     image build and freeze its carrier threads into the image heap. StartupEvent runs at runtime, after the
+    //     RedisDataSource synthetic bean is ready. ---
 
-    void onStart(@Observes @Initialized(ApplicationScoped.class) Object event) {
+    void onStart(@Observes StartupEvent event) {
         startup();
     }
 
