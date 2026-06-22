@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="
+            http://maven.apache.org/POM/4.0.0
+            https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.github.calcifux</groupId>
+    <artifactId>mailable-toolkit-parent</artifactId>
+    <version>${revision}</version>
+  </parent>
+
+  <artifactId>mailable-toolkit-quarkus</artifactId>
+  <packaging>jar</packaging>
+
+  <name>mailable-toolkit-quarkus</name>
+  <description>
+    Adapter for Quarkus and any compatible CDI + MicroProfile Config runtime. Provides an injectable
+    @ApplicationScoped MailCdiService (the backend's @Inject point) plus a static Mail facade mirroring the
+    Spring starter's API (Mail.send / Mail.queue / Mail.mailer(..) / Mail.onQueue(..)), all on top of the
+    framework-agnostic mailable-toolkit-core + mailable-toolkit-pebble. SMTP uses jakarta.mail Transport
+    directly; the durable async queue uses Redis Streams over the Quarkus RedisDataSource command API, with
+    a virtual-thread worker per queue started/stopped via the standard CDI ApplicationScoped lifecycle.
+    Native-image serialization of QueuedMail is out of scope for v1.
+  </description>
+
+  <dependencies>
+    <!-- Toolkit core + the default templating engine (compile: this module redistributes them). -->
+    <dependency>
+      <groupId>com.github.calcifux</groupId>
+      <artifactId>mailable-toolkit-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.github.calcifux</groupId>
+      <artifactId>mailable-toolkit-pebble</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <!-- CDI 4 + MicroProfile Config 3 — the portable runtime APIs (provided by the host runtime). -->
+    <dependency>
+      <groupId>jakarta.enterprise</groupId>
+      <artifactId>jakarta.enterprise.cdi-api</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse.microprofile.config</groupId>
+      <artifactId>microprofile-config-api</artifactId>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- @PreDestroy lives in jakarta.annotation-api (not cdi-api). Provided by the host runtime. -->
+    <dependency>
+      <groupId>jakarta.annotation</groupId>
+      <artifactId>jakarta.annotation-api</artifactId>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- SMTP: jakarta.mail API (MailRenderer already produces a jakarta MimeMessage). The consuming app
+         brings an implementation (angus-mail / quarkus-mailer's transitive angus). Provided here. -->
+    <dependency>
+      <groupId>jakarta.mail</groupId>
+      <artifactId>jakarta.mail-api</artifactId>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- Durable queue: Quarkus Redis client (RedisDataSource command API). Provided — the app's
+         quarkus-redis-client extension supplies it + the configured RedisDataSource at runtime. -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-redis-client</artifactId>
+      <version>${quarkus.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <version>${lombok.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- Testing -->
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Angus provides the jakarta.mail implementation so MailRenderer can assemble a MimeMessage in tests. -->
+    <dependency>
+      <groupId>org.eclipse.angus</groupId>
+      <artifactId>angus-mail</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <!-- Emit META-INF/jandex.idx into the jar (process-classes) so Quarkus/Arc auto-discovers this
+           module's @ApplicationScoped beans with no quarkus.index-dependency in the consuming app. -->
+      <plugin>
+        <groupId>io.smallrye</groupId>
+        <artifactId>jandex-maven-plugin</artifactId>
+        <version>${jandex-maven-plugin.version}</version>
+        <executions>
+          <execution>
+            <id>make-index</id>
+            <goals>
+              <goal>jandex</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

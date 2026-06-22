@@ -39,7 +39,7 @@
 
   <properties>
     <!-- Single source of truth for the release version (resolved by flatten at publish). -->
-    <revision>0.2.3</revision>
+    <revision>0.2.4</revision>
 
     <java.version>21</java.version>
     <maven.compiler.release>21</maven.compiler.release>
@@ -51,6 +51,15 @@
     <spring.boot.version>3.2.5</spring.boot.version>
 
     <lombok.version>1.18.36</lombok.version>
+
+    <!-- Quarkus adapter (mailable-toolkit-quarkus). These are NOT managed by the Spring Boot BOM, so
+         pin them here. cdi-api + microprofile-config-api are the portable runtime APIs (provided scope);
+         the Quarkus Redis client supplies the durable-queue command API (provided scope). Additive: the
+         -spring module is untouched. -->
+    <jakarta.cdi.version>4.0.1</jakarta.cdi.version>
+    <jakarta.ws.rs.version>3.1.0</jakarta.ws.rs.version>
+    <microprofile.config.version>3.1</microprofile.config.version>
+    <quarkus.version>3.9.0</quarkus.version>
 
     <!-- Pebble: NOT managed by the Boot BOM, so pin it. Jinja-like (template inheritance
          via {% extends %}/{% block %}), the closest engine to the milpa templates. -->
@@ -65,6 +74,12 @@
     <maven-surefire-plugin.version>3.1.2</maven-surefire-plugin.version>
     <flatten-maven-plugin.version>1.5.0</flatten-maven-plugin.version>
 
+    <!-- Jandex: the -quarkus jar ships META-INF/jandex.idx so a consuming Quarkus app auto-discovers
+         its CDI beans with ZERO config (no quarkus.index-dependency). MUST match the io.smallrye:jandex
+         the TARGET Quarkus bundles (3.20 -> 3.2.7, index format v12): jandex 3.5.x writes v13, which the
+         Quarkus 3.20 reader rejects (UnsupportedVersion). NB: plugin artifact moved org.jboss.jandex -> io.smallrye. -->
+    <jandex-maven-plugin.version>3.2.7</jandex-maven-plugin.version>
+
     <!-- Deliberately NO SonarCloud / JaCoCo: this toolkit stays "basic and fast" to build
          (same decision as auth-toolkit). Tests run in CI/local; JitPack builds with -DskipTests. -->
   </properties>
@@ -75,6 +90,7 @@
     <module>mailable-toolkit-thymeleaf</module>
     <module>mailable-toolkit-freemarker</module>
     <module>mailable-toolkit-spring</module>
+    <module>mailable-toolkit-quarkus</module>
   </modules>
 
   <dependencyManagement>
@@ -109,6 +125,24 @@
         <groupId>com.github.calcifux</groupId>
         <artifactId>mailable-toolkit-core</artifactId>
         <version>${project.version}</version>
+      </dependency>
+
+      <!-- Quarkus adapter runtime APIs (not in the Boot BOM). Pinned here so the -quarkus module's
+           provided-scope deps resolve without per-module versions. -->
+      <dependency>
+        <groupId>jakarta.enterprise</groupId>
+        <artifactId>jakarta.enterprise.cdi-api</artifactId>
+        <version>${jakarta.cdi.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>jakarta.ws.rs</groupId>
+        <artifactId>jakarta.ws.rs-api</artifactId>
+        <version>${jakarta.ws.rs.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.eclipse.microprofile.config</groupId>
+        <artifactId>microprofile-config-api</artifactId>
+        <version>${microprofile.config.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
