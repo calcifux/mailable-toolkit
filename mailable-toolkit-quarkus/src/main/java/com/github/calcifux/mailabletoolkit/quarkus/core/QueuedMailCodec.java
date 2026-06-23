@@ -37,10 +37,38 @@ final class QueuedMailCodec {
 
     static QueuedMail decode(String base64) {
         byte[] data = Base64.getDecoder().decode(base64);
-        try (ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(data))) {
+        try (ObjectInputStream in = new TcclObjectInputStream(new ByteArrayInputStream(data))) {
             return (QueuedMail) in.readObject();
         } catch (Exception e) {
             throw new MailToolkitException("Could not deserialize QueuedMail", e);
+        }
+    }
+
+    /**
+     * {@link ObjectInputStream} that resolves classes via the thread context classloader (TCCL) first.
+     * Under Quarkus dev mode the concrete {@code Mailable} types are app classes living in the hot-reload
+     * classloader (a child of the base CL that loads this toolkit); the stock {@code resolveClass} uses the
+     * latest user-defined loader on the stack — here the toolkit/base CL — and misses them with a
+     * {@link ClassNotFoundException}. Packaged JVM/native have a single CL, so the TCCL is that same CL and
+     * this is a no-op. Falls back to the default resolution for JDK/base classes.
+     */
+    private static final class TcclObjectInputStream extends ObjectInputStream {
+        TcclObjectInputStream(java.io.InputStream in) throws java.io.IOException {
+            super(in);
+        }
+
+        @Override
+        protected Class<?> resolveClass(java.io.ObjectStreamClass desc)
+                throws java.io.IOException, ClassNotFoundException {
+            ClassLoader tccl = Thread.currentThread().getContextClassLoader();
+            if (tccl != null) {
+                try {
+                    return Class.forName(desc.getName(), false, tccl);
+                } catch (ClassNotFoundException ignored) {
+                    // fall through to the default resolution
+                }
+            }
+            return super.resolveClass(desc);
         }
     }
 }

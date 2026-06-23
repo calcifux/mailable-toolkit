@@ -56,6 +56,10 @@ public class RedisStreamMailQueue implements MailQueue, AutoCloseable {
         return thread;
     });
     private volatile boolean running = false;
+    // CL runtime de la app (capturado en enqueue(), que corre en un hilo de request; start() lo siembra como
+    // fallback): los workers corren en virtual threads que NO lo heredan → se fija en cada iteración de drain()
+    // para que decode() y el render resuelvan clases y recursos de la app. Clave en Quarkus dev mode (CL partido).
+    private volatile ClassLoader appClassLoader;
 
     public RedisStreamMailQueue(RedisDataSource redis, MailDispatcher dispatcher, RetryPolicy retry,
                                 String keyPrefix, String group, Set<String> queues, long blockMillis) {
@@ -75,6 +79,9 @@ public class RedisStreamMailQueue implements MailQueue, AutoCloseable {
             return;
         }
         running = true;
+        // start() corre en el contexto de la app (StartupEvent) → su TCCL es el classloader de la app. Lo
+        // capturamos para fijarlo en los virtual threads de los workers, que arrancan con el CL del sistema.
+        this.appClassLoader = Thread.currentThread().getContextClassLoader();
         for (String queue : queues) {
             String key = streamKey(queue);
             ensureGroup(key);
@@ -84,12 +91,23 @@ public class RedisStreamMailQueue implements MailQueue, AutoCloseable {
 
     @Override
     public void enqueue(QueuedMail mail) {
+        // enqueue() corre en un hilo de REQUEST de la app → su TCCL es el classloader RUNTIME que SÍ carga los
+        // recursos de la app (plantillas + bundles i18n). Lo capturamos para fijarlo en el virtual thread del
+        // worker (que no lo hereda). En dev mode el CL de start()/StartupEvent NO sirve para esto (es otro CL).
+        this.appClassLoader = Thread.currentThread().getContextClassLoader();
         add(streamKey(mail.getQueue()), mail);
     }
 
     private void drain(String queue, String key) {
         log.info("[mailable-toolkit] redis queue worker started for '{}' (stream {})", queue, key);
         while (running) {
+            // Virtual thread: NO hereda el CL de la app. Fijamos el capturado en enqueue() (CL runtime de un hilo
+            // de request, que SÍ carga recursos de la app) antes de procesar, para que decode() y el render
+            // (plantillas + bundles i18n) lo usen. Clave en Quarkus dev mode (CL partido).
+            ClassLoader cl = appClassLoader;
+            if (cl != null) {
+                Thread.currentThread().setContextClassLoader(cl);
+            }
             try {
                 // XREADGROUP GROUP <group> <consumer> COUNT 1 BLOCK <ms> STREAMS <key> >
                 Response reply = redis.execute("XREADGROUP", "GROUP", group, consumer,
